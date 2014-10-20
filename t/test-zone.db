@@ -103,3 +103,9 @@ commenttest32                   HINFO   "te;st" "te;st2"
 commenttest33                   HINFO   "te;st" "te;st2" ; comment
 commenttest34                   HINFO   "te;st" "te;st2" ; "comment"
 commenttest35                   HINFO   "te;st" "te;st2" ; "com;ment"
+
+borrowed.from.rfc.3403.com. IN NAPTR 100  50  "a"    "z3950+N2L+N2C"     ""   cidserver.example.com.
+borrowed2.from.rfc.3403.com. IN NAPTR 100  50  "a"    "rcds+N2C"          ""   cidserver.example.com.
+borrowed3.from.rfc.3403.com. IN  NAPTR 100   10   ""    ""  "!^urn:cid:.+@([^\.]+\.)(.*)$!\2!i"    .
+notborrowed.from.rfc.3403.com. IN NAPTR  0   0 "s" "SIPS+D2T" ""   _sips._tcp
+notborrowed2.from.rfc.3403.com. IN      NAPTR   2 0 "s" "SIP+D2U" ""    _sip._udp

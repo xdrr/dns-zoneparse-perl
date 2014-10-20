@@ -1,6 +1,6 @@
 use strict;
 BEGIN { $^W++ }
-use Test::More tests => 61;
+use Test::More tests => 64;
 use File::Spec::Functions ':ALL';
 use lib '../lib/';
 
@@ -745,6 +745,73 @@ sub test_zone {
 
         ],
         'HINFO records parsed OK',
+    );
+
+    is_deeply(
+        $zf->naptr,
+        [
+            {
+                'name'   => 'borrowed.from.rfc.3403.com.',
+                'class'  => 'IN',
+                'ttl'    => '1H',
+                'order'  => '100',
+                'preference' => '50',
+                'flags' => 'a',
+                'services' => 'z3950+N2L+N2C',
+                'regexp' => '',
+                'replacement' => 'cidserver.example.com.',
+                'ORIGIN' => 'dns-zoneparse-test.net.',
+            },
+            {
+                'name'   => 'borrowed2.from.rfc.3403.com.',
+                'class'  => 'IN',
+                'ttl'    => '1H',
+                'order'  => '100',
+                'preference' => '50',
+                'flags' => 'a',
+                'services' => 'rcds+N2C',
+                'regexp' => '',
+                'replacement' => 'cidserver.example.com.',
+                'ORIGIN' => 'dns-zoneparse-test.net.',
+            },
+            {
+                'name'   => 'borrowed3.from.rfc.3403.com.',
+                'class'  => 'IN',
+                'ttl'    => '1H',
+                'order'  => '100',
+                'preference' => '10',
+                'flags' => '',
+                'services' => '',
+                'regexp' => '!^urn:cid:.+@([^\.]+\.)(.*)$!\2!i',
+                'replacement' => '.',
+                'ORIGIN' => 'dns-zoneparse-test.net.',
+            },
+            {
+                'name'   => 'notborrowed.from.rfc.3403.com.',
+                'class'  => 'IN',
+                'ttl'    => '1H',
+                'order'  => '0',
+                'preference' => '0',
+                'flags' => 's',
+                'services' => 'SIPS+D2T',
+                'regexp' => '',
+                'replacement' => '_sips._tcp',
+                'ORIGIN' => 'dns-zoneparse-test.net.',
+            },
+            {
+                'name'   => 'notborrowed2.from.rfc.3403.com.',
+                'class'  => 'IN',
+                'ttl'    => '1H',
+                'order'  => '2',
+                'preference' => '0',
+                'flags' => 's',
+                'services' => 'SIP+D2U',
+                'regexp' => '',
+                'replacement' => '_sip._udp',
+                'ORIGIN' => 'dns-zoneparse-test.net.',
+            },
+        ],
+        'NAPTR records parsed OK',
     );
 
     is_deeply(

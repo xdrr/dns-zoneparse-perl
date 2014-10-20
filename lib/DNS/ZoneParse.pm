@@ -21,7 +21,7 @@ $VERSION = '1.10';
 my (
     %dns_id,  %dns_soa, %dns_ns,  %dns_a,     %dns_cname, %dns_mx, %dns_txt,
     %dns_ptr, %dns_a4,  %dns_srv, %dns_hinfo, %dns_rp,    %dns_loc,
-    %dns_generate,
+    %dns_generate, %dns_naptr,
     %dns_last_name, %dns_last_origin, %dns_last_class, %dns_last_ttl,
     %dns_dollar_ttl, %dns_found_origins, %unparseable_line_callback, %last_parse_error_count,
 );
@@ -79,6 +79,7 @@ sub DESTROY {
     delete $dns_loc{$self};
     delete $dns_id{$self};
     delete $dns_generate{$self};
+    delete $dns_naptr{$self};
     delete $dns_last_name{$self};
     delete $dns_last_origin{$self};
     delete $dns_last_ttl{$self};
@@ -107,6 +108,7 @@ sub AUTOLOAD {
      : $method eq 'rp'       ? $dns_rp{$self}
      : $method eq 'loc'      ? $dns_loc{$self}
      : $method eq 'generate' ? $dns_generate{$self}
+     : $method eq 'naptr'    ? $dns_naptr{$self}
      : $method eq 'zonefile' ? $dns_id{$self}->{ZoneFile}
      : $method eq 'origin'   ? $dns_id{$self}->{Origin}
      :                         undef;
@@ -276,7 +278,14 @@ ZONEHEADER2
         $self->_escape_chars( $o );
         $output .= "\$GENERATE $o->{range}  $o->{lhs}  $o->{ttl}  $o->{class}  $o->{type}  $o->{rhs}\n";
     }
-
+    foreach my $o ( @{ $dns_naptr{$self} } ) {
+        next unless defined $o;
+        next unless $o->{'ORIGIN'} eq $process_this_origin;
+        $self->_escape_chars( $o );
+        ($o->{'flags'}, $o->{'services'}, $o->{'regexp'}, $o->{'replacement'}) = 
+            map { $_ eq '' ? '""' : "\"$_\""; } ($o->{'flags'}, $o->{'services'}, $o->{'regexp'}, $o->{'replacement'});
+        $output .= "$o->{name}  $o->{ttl}   $o->{class} NAPTR   $o->{order} $o->{preference}    $o->{flags} $o->{services}  $o->{regexp}    $o->{replacement}\n";
+    }
     }
 
     return $output;
@@ -369,6 +378,7 @@ sub _initialize {
     $dns_rp{$self}        = [];
     $dns_loc{$self}       = [];
     $dns_generate{$self}  = [];
+    $dns_naptr{$self}     = [];
     $dns_last_name{$self} = undef;
     $dns_last_origin{$self} = undef;
     $dns_last_ttl{$self} = undef;
@@ -752,6 +762,38 @@ sub _parse {
                     vp    => $15,
              } );
 
+        } elsif (
+            /^($valid_name)? \s+
+                $ttl_cls
+                NAPTR \s+
+                (\d+) \s*
+                (\d+) \s*
+                (\"[^\"]+\"|[^\s]+) \s*
+                (\"[^\"]+\"|[^\s]+) \s*
+                (\"[^\"]+\"|[^\s]+) \s*
+                (\"[^\"]+\"|[^\s]+) \s*
+            /ixo
+         )
+        {
+            # Strip quotes from quoted character-strings
+            my ($flags, $srvs, $rgxp, $repl) = ($6, $7, $8, $9);
+
+            ($flags, $srvs, $rgxp, $repl) = map { $_ =~ s/\"//g; $_; }
+                ($flags, $srvs, $rgxp, $repl);
+
+            push @{ $dns_naptr{$self} },
+                $self->_massage( {
+                    name        => $1,
+                    ttl         => $2,
+                    class       => $3,
+                    order       => $4,
+                    preference  => $5,
+                    flags       => $flags,
+                    services    => $srvs,
+                    regexp      => $rgxp,
+                    replacement => $repl,
+                } );
+
         } elsif ( /^\s*\$ORIGIN\s+($valid_name_char+)/io ) {
             my $new_origin = $1;
             # We could track each origins origin, all the way down, but what
@@ -881,7 +923,9 @@ sub _massage {
 
         # We return email addresses just as they are in the file... for better
         # or worse (mostly for backwards compatability reasons).
-        if ( $r ne 'email' && $r ne 'mbox' ) {
+        #
+        # We also keep NAPTR regexes in tact to preserve their meaning.
+        if ( $r ne 'email' && $r ne 'mbox' && $r ne 'regexp' ) {
             while ( $record->{$r} =~ m/\\/g ) {
                 my $pos = pos( $record->{$r} );
                 my $escape_char = substr( $record->{$r}, $pos, 1 );
@@ -1027,7 +1071,11 @@ sub _escape_chars {
     local $" = '|';
 
     foreach my $k ( keys( %{$clean_me} ) ) {
-        $clean_me->{$k} =~ s/(@ESCAPABLE_CHARACTERS)/\\$1/g;
+        # Avoid escaping regular expressions to preserve
+        # their meaning.
+        if ( $k ne 'regexp' ) {
+            $clean_me->{$k} =~ s/(@ESCAPABLE_CHARACTERS)/\\$1/g;
+        }
     }
 }
 
