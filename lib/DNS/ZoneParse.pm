@@ -137,6 +137,7 @@ sub dump {
             HINFO => $dns_hinfo{$self},
             RP    => $dns_rp{$self},
             LOC   => $dns_loc{$self},
+            NAPTR => $dns_naptr{$self},
     } );
 }
 
